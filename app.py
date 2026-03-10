@@ -102,6 +102,11 @@ else:
     if not df.empty:
         # Bikin nomor urut dari 1
         df.index = range(1, len(df) + 1)
-        st.table(df) # Pake st.table biar lebih rapi nomornya
+        
+        # SAKTI: Ini buat ngilangin desimal dan nambahin pemisah ribuan biar rapi
+        df_display = df.copy()
+        df_display['amount'] = df_display['amount'].apply(lambda x: f"Rp {x:,.0f}")
+        
+        st.table(df_display)
     else:
         st.write("Belum ada riwayat.")
