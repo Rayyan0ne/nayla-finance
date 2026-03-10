@@ -17,7 +17,7 @@ st.set_page_config(page_title="Nayla Finance & Project", page_icon="👗", layou
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 
-# --- UI AUTH (Login/Register) ---
+# --- UI AUTH ---
 if not st.session_state['logged_in']:
     st.title("👗 Study Fashion x Nayla")
     tab1, tab2 = st.tabs(["Login", "Daftar Akun"])
@@ -61,7 +61,7 @@ else:
         st.title("💸 Catatan Keuangan Nayla")
         
         conn = get_db_connection()
-        query = f"SELECT type, amount, note, created_at FROM transactions WHERE username='{st.session_state['user']}' ORDER BY created_at DESC"
+        query = f"SELECT id, type, amount, note, created_at FROM transactions WHERE username='{st.session_state['user']}' ORDER BY created_at DESC"
         df = pd.read_sql(query, conn)
         conn.close()
 
@@ -81,24 +81,37 @@ else:
                 cursor = conn.cursor()
                 cursor.execute("INSERT INTO transactions (username, type, amount, note) VALUES (%s, %s, %s, %s)", (st.session_state['user'], tipe, amt, note))
                 conn.commit()
+                st.success("Data disimpan!")
                 st.rerun()
 
-        st.subheader("📜 Riwayat")
+        st.subheader("📜 Riwayat & Hapus Data")
         if not df.empty:
-            df_view = df.copy()
-            df_view['amount'] = df_view['amount'].apply(lambda x: f"Rp {x:,.0f}")
-            st.table(df_view)
+            for index, row in df.iterrows():
+                col_data, col_del = st.columns([5, 1])
+                with col_data:
+                    st.write(f"**{row['note']}** | {row['type']} | **Rp {row['amount']:,.0f}**")
+                    st.caption(f"Tanggal: {row['created_at']}")
+                with col_del:
+                    if st.button("Hapus", key=f"del_fin_{row['id']}"):
+                        conn = get_db_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM transactions WHERE id=%s", (row['id'],))
+                        conn.commit()
+                        st.warning("Terhapus!")
+                        st.rerun()
+                st.divider()
+        else:
+            st.write("Belum ada riwayat.")
 
-    # --- MENU 2: STUDY FASHION ADMIN (PROPER VERSION) ---
+    # --- MENU 2: STUDY FASHION ADMIN ---
     elif menu == "🎓 Study Fashion Admin":
         st.title("🛠️ Study Fashion Management")
-        st.info("Gunakan halaman ini untuk simulasi manajemen murid sesuai proposal P2MW.")
+        st.info("Otomatisasi: Checklist modul akan langsung meng-update progress bar murid.")
 
         conn = get_db_connection()
         df_stu = pd.read_sql(f"SELECT * FROM students WHERE username='{st.session_state['user']}'", conn)
         conn.close()
 
-        # Input Murid Baru
         with st.expander("👤 Tambah Murid Baru"):
             nc1, nc2 = st.columns(2)
             s_name = nc1.text_input("Nama Murid")
@@ -106,28 +119,35 @@ else:
             if st.button("Daftarkan Murid"):
                 conn = get_db_connection()
                 cursor = conn.cursor()
-                cursor.execute("INSERT INTO students (student_name, course_name, username) VALUES (%s, %s, %s)", (s_name, s_course, st.session_state['user']))
+                cursor.execute("INSERT INTO students (student_name, course_name, username, progress) VALUES (%s, %s, %s, 0)", (s_name, s_course, st.session_state['user']))
                 conn.commit()
-                st.success(f"{s_name} berhasil didaftarkan!")
+                st.success(f"{s_name} terdaftar!")
                 st.rerun()
 
-        # List Murid & Progres
         st.subheader("📊 Progres Kursus Mahasiswa")
         if not df_stu.empty:
             for index, row in df_stu.iterrows():
                 with st.container():
-                    col_a, col_b, col_c = st.columns([2, 3, 1])
-                    col_a.write(f"**{row['student_name']}**\n\n({row['course_name']})")
-                    prog = col_b.slider(f"Update Progres {row['student_name']}", 0, 100, int(row['progress']), key=f"s_{row['id']}")
+                    c_info, c_check, c_del_stu = st.columns([2, 3, 1])
+                    c_info.write(f"**{row['student_name']}**\n\n({row['course_name']})")
                     
-                    if col_c.button("Update", key=f"btn_{row['id']}"):
+                    # Logika Checklist Otomatis (4 Modul = 25% per modul)
+                    st.write("Ceklis Modul Selesai:")
+                    m1 = st.checkbox("Modul 1: Pengenalan", key=f"m1_{row['id']}")
+                    m2 = st.checkbox("Modul 2: Pola Dasar", key=f"m2_{row['id']}")
+                    m3 = st.checkbox("Modul 3: Teknik Jahit", key=f"m3_{row['id']}")
+                    m4 = st.checkbox("Modul 4: Finishing", key=f"m4_{row['id']}")
+                    
+                    current_prog = sum([m1, m2, m3, m4]) * 25
+                    st.progress(current_prog / 100)
+                    st.write(f"Progres: {current_prog}%")
+
+                    if c_del_stu.button("Hapus Murid", key=f"del_stu_{row['id']}"):
                         conn = get_db_connection()
                         cursor = conn.cursor()
-                        cursor.execute("UPDATE students SET progress=%s WHERE id=%s", (prog, row['id']))
+                        cursor.execute("DELETE FROM students WHERE id=%s", (row['id'],))
                         conn.commit()
                         st.rerun()
-                    
-                    st.progress(prog / 100)
                     st.divider()
         else:
-            st.write("Belum ada murid. Yuk tambah satu!")
+            st.write("Belum ada murid.")
