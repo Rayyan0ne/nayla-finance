@@ -2,7 +2,7 @@ import streamlit as st
 import mysql.connector
 import pandas as pd
 
-# Konfigurasi Database (Pake st.secrets biar aman!)
+# Fungsi Koneksi
 def get_db_connection():
     return mysql.connector.connect(
         host=st.secrets["db_host"],
@@ -12,87 +12,96 @@ def get_db_connection():
         database=st.secrets["db_name"]
     )
 
-st.set_page_config(page_title="Nayla Finance", page_icon="💰")
+st.set_page_config(page_title="Nayla Project", page_icon="💰")
 
-# --- SESSION STATE (Biar nggak bolak-balik login) ---
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
-if 'user' not in st.session_state:
-    st.session_state['user'] = ""
 
-# --- FUNGSI AUTH ---
-def login_user(username, password):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (username, password))
-    res = cursor.fetchone()
-    conn.close()
-    return res
-
-def register_user(username, password):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, password))
-        conn.commit()
-        conn.close()
-        return True
-    except:
-        return False
-
-# --- UI APP ---
-st.title("💰 Nayla Project (Personal Finance)")
-
+# --- UI AUTH (Login/Register) ---
 if not st.session_state['logged_in']:
+    st.title("💰 Nayla Project")
     tab1, tab2 = st.tabs(["Login", "Daftar Akun"])
-    
     with tab1:
-        u = st.text_input("Username", key="login_u")
-        p = st.text_input("Password", type="password", key="login_p")
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
         if st.button("Masuk"):
-            if login_user(u, p):
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (u, p))
+            if cursor.fetchone():
                 st.session_state['logged_in'] = True
                 st.session_state['user'] = u
                 st.rerun()
-            else:
-                st.error("Gagal login, cek lagi ya!")
-
+            else: st.error("Salah password/user!")
+            conn.close()
     with tab2:
         new_u = st.text_input("Username Baru")
         new_p = st.text_input("Password Baru", type="password")
         if st.button("Buat Akun"):
-            if register_user(new_u, new_p):
-                st.success("Akun berhasil dibuat! Silakan Login.")
-            else:
-                st.error("Username udah ada atau error.")
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            try:
+                cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (new_u, new_p))
+                conn.commit()
+                st.success("Selesai! Silakan Login.")
+            except: st.error("User sudah ada!")
+            conn.close()
 
+# --- DASHBOARD UTAMA ---
 else:
+    st.title(f"💰 Nayla Project (Finance)")
     st.sidebar.write(f"Halo, **{st.session_state['user']}**! 👋")
     if st.sidebar.button("Logout"):
         st.session_state['logged_in'] = False
         st.rerun()
 
-    # --- DASHBOARD UTAMA ---
-    st.subheader("Tambah Catatan Baru")
-    col1, col2 = st.columns(2)
-    with col1:
-        tipe = st.selectbox("Tipe", ["Income", "Expense"])
-        jumlah = st.number_input("Nominal (Rp)", min_value=0)
-    with col2:
-        ket = st.text_area("Keterangan")
-    
-    if st.button("Simpan Catatan"):
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO transactions (username, type, amount, note) VALUES (%s, %s, %s, %s)",
-                       (st.session_state['user'], tipe, jumlah, ket))
-        conn.commit()
-        conn.close()
-        st.success("Data berhasil disimpan!")
+    # Ambil Data
+    conn = get_db_connection()
+    query = f"SELECT type, amount, note, created_at FROM transactions WHERE username='{st.session_state['user']}' ORDER BY created_at DESC"
+    df = pd.read_sql(query, conn)
+    conn.close()
+
+    # --- HITUNG SALDO ---
+    if not df.empty:
+        total_income = df[df['type'] == 'Income']['amount'].sum()
+        total_expense = df[df['type'] == 'Expense']['amount'].sum()
+        saldo_akhir = total_income - total_expense
+        
+        # Tampilan Saldo yang Wah
+        st.metric(label="Sisa Saldo Saat Ini", value=f"Rp {saldo_akhir:,.0f}")
+        
+        col1, col2 = st.columns(2)
+        col1.info(f"Total Masuk: Rp {total_income:,.0f}")
+        col2.warning(f"Total Keluar: Rp {total_expense:,.0f}")
+    else:
+        st.info("Belum ada data. Saldo: Rp 0")
 
     st.divider()
-    st.subheader("Riwayat Keuangan")
-    conn = get_db_connection()
-    df = pd.read_sql(f"SELECT type, amount, note, created_at FROM transactions WHERE username='{st.session_state['user']}' ORDER BY created_at DESC", conn)
-    conn.close()
-    st.dataframe(df, use_container_width=True)
+
+    # --- INPUT DATA ---
+    with st.expander("➕ Tambah Transaksi"):
+        t_col1, t_col2 = st.columns(2)
+        with t_col1:
+            tipe = st.selectbox("Tipe", ["Income", "Expense"])
+            jumlah = st.number_input("Nominal (Rp)", min_value=0, step=1000)
+        with t_col2:
+            ket = st.text_input("Keterangan")
+        
+        if st.button("Simpan Data"):
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO transactions (username, type, amount, note) VALUES (%s, %s, %s, %s)",
+                           (st.session_state['user'], tipe, jumlah, ket))
+            conn.commit()
+            conn.close()
+            st.success("Data Berhasil Disimpan!")
+            st.rerun()
+
+    # --- TABEL RIWAYAT ---
+    st.subheader("📜 Riwayat Transaksi")
+    if not df.empty:
+        # Bikin nomor urut dari 1
+        df.index = range(1, len(df) + 1)
+        st.table(df) # Pake st.table biar lebih rapi nomornya
+    else:
+        st.write("Belum ada riwayat.")
