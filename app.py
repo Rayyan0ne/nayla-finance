@@ -12,14 +12,14 @@ def get_db_connection():
         database=st.secrets["db_name"]
     )
 
-st.set_page_config(page_title="Nayla Project", page_icon="💰")
+st.set_page_config(page_title="Nayla Finance & Project", page_icon="👗", layout="wide")
 
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 
 # --- UI AUTH (Login/Register) ---
 if not st.session_state['logged_in']:
-    st.title("💰 Nayla Project")
+    st.title("👗 Study Fashion x Nayla")
     tab1, tab2 = st.tabs(["Login", "Daftar Akun"])
     with tab1:
         u = st.text_input("Username")
@@ -49,91 +49,85 @@ if not st.session_state['logged_in']:
 
 # --- DASHBOARD UTAMA ---
 else:
-    st.title(f"💰 Nayla Project (Finance)")
-    st.sidebar.write(f"Halo, **{st.session_state['user']}**! 👋")
+    st.sidebar.title(f"Halo, {st.session_state['user']}! 👋")
+    menu = st.sidebar.radio("Pilih Menu:", ["💰 Personal Finance", "🎓 Study Fashion Admin"])
+    
     if st.sidebar.button("Logout"):
         st.session_state['logged_in'] = False
         st.rerun()
 
-    # Ambil Data
-    conn = get_db_connection()
-    query = f"SELECT type, amount, note, created_at FROM transactions WHERE username='{st.session_state['user']}' ORDER BY created_at DESC"
-    df = pd.read_sql(query, conn)
-    conn.close()
+    # --- MENU 1: PERSONAL FINANCE ---
+    if menu == "💰 Personal Finance":
+        st.title("💸 Catatan Keuangan Nayla")
+        
+        conn = get_db_connection()
+        query = f"SELECT type, amount, note, created_at FROM transactions WHERE username='{st.session_state['user']}' ORDER BY created_at DESC"
+        df = pd.read_sql(query, conn)
+        conn.close()
 
-    # --- HITUNG SALDO ---
-    if not df.empty:
-        total_income = df[df['type'] == 'Income']['amount'].sum()
-        total_expense = df[df['type'] == 'Expense']['amount'].sum()
-        saldo_akhir = total_income - total_expense
+        if not df.empty:
+            ti = df[df['type'] == 'Income']['amount'].sum()
+            te = df[df['type'] == 'Expense']['amount'].sum()
+            saldo = ti - te
+            st.metric("Sisa Saldo", f"Rp {saldo:,.0f}")
         
-        # Tampilan Saldo yang Wah
-        st.metric(label="Sisa Saldo Saat Ini", value=f"Rp {saldo_akhir:,.0f}")
-        
-        col1, col2 = st.columns(2)
-        col1.info(f"Total Masuk: Rp {total_income:,.0f}")
-        col2.warning(f"Total Keluar: Rp {total_expense:,.0f}")
-    else:
-        st.info("Belum ada data. Saldo: Rp 0")
+        with st.expander("➕ Tambah Catatan"):
+            c1, c2 = st.columns(2)
+            tipe = c1.selectbox("Tipe", ["Income", "Expense"])
+            amt = c2.number_input("Nominal", min_value=0, step=1000)
+            note = st.text_input("Keterangan")
+            if st.button("Simpan Finance"):
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO transactions (username, type, amount, note) VALUES (%s, %s, %s, %s)", (st.session_state['user'], tipe, amt, note))
+                conn.commit()
+                st.rerun()
 
-    st.divider()
+        st.subheader("📜 Riwayat")
+        if not df.empty:
+            df_view = df.copy()
+            df_view['amount'] = df_view['amount'].apply(lambda x: f"Rp {x:,.0f}")
+            st.table(df_view)
 
-    # --- INPUT DATA ---
-    with st.expander("➕ Tambah Transaksi"):
-        t_col1, t_col2 = st.columns(2)
-        with t_col1:
-            tipe = st.selectbox("Tipe", ["Income", "Expense"])
-            jumlah = st.number_input("Nominal (Rp)", min_value=0, step=1000)
-        with t_col2:
-            ket = st.text_input("Keterangan")
-        
-        if st.button("Simpan Data"):
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO transactions (username, type, amount, note) VALUES (%s, %s, %s, %s)",
-                           (st.session_state['user'], tipe, jumlah, ket))
-            conn.commit()
-            conn.close()
-            st.success("Data Berhasil Disimpan!")
-            st.rerun()
+    # --- MENU 2: STUDY FASHION ADMIN (PROPER VERSION) ---
+    elif menu == "🎓 Study Fashion Admin":
+        st.title("🛠️ Study Fashion Management")
+        st.info("Gunakan halaman ini untuk simulasi manajemen murid sesuai proposal P2MW.")
 
-    # --- TABEL RIWAYAT ---
-    st.subheader("📜 Riwayat Transaksi")
-    if not df.empty:
-        # Bikin nomor urut dari 1
-        df.index = range(1, len(df) + 1)
-        
-        # SAKTI: Ini buat ngilangin desimal dan nambahin pemisah ribuan biar rapi
-        df_display = df.copy()
-        df_display['amount'] = df_display['amount'].apply(lambda x: f"Rp {x:,.0f}")
-        
-        st.table(df_display)
-    else:
-        st.write("Belum ada riwayat.")
-        
-# --- FITUR HAPUS DATA ---
-    st.divider()
-    st.subheader("🗑️ Hapus Transaksi")
-    
-    if not df.empty:
-        # Bikin daftar pilihan transaksi (Nominal - Keterangan - Tanggal)
-        df_delete = df.copy()
-        df_delete['display'] = df_delete.apply(lambda x: f"{x['amount']} - {x['note']} ({x['created_at']})", axis=1)
-        
-        selected_to_delete = st.selectbox("Pilih data yang mau dihapus:", df_delete['display'])
-        
-        # Ambil created_at yang asli buat kunci penghapusan
-        timestamp_to_delete = df_delete[df_delete['display'] == selected_to_delete]['created_at'].values[0]
+        conn = get_db_connection()
+        df_stu = pd.read_sql(f"SELECT * FROM students WHERE username='{st.session_state['user']}'", conn)
+        conn.close()
 
-        if st.button("Hapus Sekarang", type="primary"):
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            # Hapus berdasarkan user dan tanggal persis
-            cursor.execute("DELETE FROM transactions WHERE username=%s AND created_at=%s", 
-                           (st.session_state['user'], str(timestamp_to_delete)))
-            conn.commit()
-            conn.close()
-            st.warning("Data berhasil dihapus!")
-            st.rerun()
-    else:
-        st.write("Gak ada data yang bisa dihapus.")
+        # Input Murid Baru
+        with st.expander("👤 Tambah Murid Baru"):
+            nc1, nc2 = st.columns(2)
+            s_name = nc1.text_input("Nama Murid")
+            s_course = nc2.selectbox("Pilih Kursus", ["Dasar Menjahit VR", "Rancang Busana Digital", "Tekstil & Bahan"])
+            if st.button("Daftarkan Murid"):
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO students (student_name, course_name, username) VALUES (%s, %s, %s)", (s_name, s_course, st.session_state['user']))
+                conn.commit()
+                st.success(f"{s_name} berhasil didaftarkan!")
+                st.rerun()
+
+        # List Murid & Progres
+        st.subheader("📊 Progres Kursus Mahasiswa")
+        if not df_stu.empty:
+            for index, row in df_stu.iterrows():
+                with st.container():
+                    col_a, col_b, col_c = st.columns([2, 3, 1])
+                    col_a.write(f"**{row['student_name']}**\n\n({row['course_name']})")
+                    prog = col_b.slider(f"Update Progres {row['student_name']}", 0, 100, int(row['progress']), key=f"s_{row['id']}")
+                    
+                    if col_c.button("Update", key=f"btn_{row['id']}"):
+                        conn = get_db_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE students SET progress=%s WHERE id=%s", (prog, row['id']))
+                        conn.commit()
+                        st.rerun()
+                    
+                    st.progress(prog / 100)
+                    st.divider()
+        else:
+            st.write("Belum ada murid. Yuk tambah satu!")
