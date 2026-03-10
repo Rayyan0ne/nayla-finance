@@ -110,3 +110,30 @@ else:
         st.table(df_display)
     else:
         st.write("Belum ada riwayat.")
+        
+# --- FITUR HAPUS DATA ---
+    st.divider()
+    st.subheader("🗑️ Hapus Transaksi")
+    
+    if not df.empty:
+        # Bikin daftar pilihan transaksi (Nominal - Keterangan - Tanggal)
+        df_delete = df.copy()
+        df_delete['display'] = df_delete.apply(lambda x: f"{x['amount']} - {x['note']} ({x['created_at']})", axis=1)
+        
+        selected_to_delete = st.selectbox("Pilih data yang mau dihapus:", df_delete['display'])
+        
+        # Ambil created_at yang asli buat kunci penghapusan
+        timestamp_to_delete = df_delete[df_delete['display'] == selected_to_delete]['created_at'].values[0]
+
+        if st.button("Hapus Sekarang", type="primary"):
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            # Hapus berdasarkan user dan tanggal persis
+            cursor.execute("DELETE FROM transactions WHERE username=%s AND created_at=%s", 
+                           (st.session_state['user'], str(timestamp_to_delete)))
+            conn.commit()
+            conn.close()
+            st.warning("Data berhasil dihapus!")
+            st.rerun()
+    else:
+        st.write("Gak ada data yang bisa dihapus.")
