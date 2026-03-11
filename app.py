@@ -16,9 +16,11 @@ def get_db_connection():
     )
 
 def load_lottieurl(url: str):
-    r = requests.get(url)
-    if r.status_code != 200: return None
-    return r.json()
+    try:
+        r = requests.get(url)
+        if r.status_code != 200: return None
+        return r.json()
+    except: return None
 
 # --- LOAD ANIMASI ---
 lottie_wallet = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_yM949E.json")
@@ -28,9 +30,14 @@ lottie_chart = load_lottieurl("https://assets9.lottiefiles.com/packages/lf20_qp1
 # --- CONFIG HALAMAN ---
 st.set_page_config(page_title="Nayla Ultra Project", page_icon="💎", layout="wide")
 
-# --- CUSTOM CSS (Neon Dark Luxury) ---
+# --- CUSTOM CSS (Keamanan & Tampilan) ---
 st.markdown("""
     <style>
+    /* Sembunyikan Header & Menu Bawaan Streamlit agar tidak bisa diotak-atik */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
     .main { background-color: #121212; color: #e0e0e0; }
     
     @keyframes popIn {
@@ -90,7 +97,8 @@ if not st.session_state['logged_in']:
                 conn = get_db_connection()
                 cursor = conn.cursor()
                 cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (u, p))
-                if cursor.fetchone():
+                user_data = cursor.fetchone()
+                if user_data:
                     st.session_state['logged_in'] = True
                     st.session_state['user'] = u
                     st.rerun()
@@ -112,43 +120,25 @@ if not st.session_state['logged_in']:
 # --- MAIN APP ---
 else:
     st.sidebar.markdown(f"<h2 style='text-align: center;'>👑 {st.session_state['user']}</h2>", unsafe_allow_html=True)
-    menu = st.sidebar.selectbox("Pilih Dashboard:", ["💰 Money Tracker", "🎓 Student Admin", "📈 Growth Analytics"])
+    
+    # PERUBAHAN DISINI: Menggunakan radio agar menu tidak bisa di-clear/dihapus
+    st.sidebar.write("### 🧭 Navigasi")
+    menu = st.sidebar.radio(
+        "Pilih Dashboard:", 
+        ["💰 Money Tracker", "🎓 Student Admin", "📈 Growth Analytics"],
+        label_visibility="collapsed"
+    )
+    
     st.sidebar.divider()
     if st.sidebar.button("🚪 Keluar Sistem", use_container_width=True):
         st.session_state['logged_in'] = False
         st.rerun()
 
+    # Ambil Data
     conn = get_db_connection()
     df_fin = pd.read_sql(f"SELECT * FROM transactions WHERE username='{st.session_state['user']}' ORDER BY created_at DESC", conn)
     df_stu = pd.read_sql(f"SELECT * FROM students WHERE username='{st.session_state['user']}'", conn)
     conn.close()
-    
-    # --- PROTEKSI HALAMAN ---
-if not st.session_state['logged_in']:
-    _, col_auth, _ = st.columns([1, 1.5, 1])
-    with col_auth:
-        st.title("🔒 Restricted Access")
-        u = st.text_input("Username")
-        p = st.text_input("Password", type="password")
-        if st.button("Masuk", use_container_width=True):
-            # Logika login lu di sini...
-            if u == "admin" and p == "admin": # Contoh simpel
-                st.session_state['logged_in'] = True
-                st.rerun()
-            else:
-                st.error("Siapa lu? Jangan iseng ya!")
-else:
-    # HALAMAN UTAMA HANYA MUNCUL JIKA SUDAH LOGIN
-    st.sidebar.title(f"Halo, {st.session_state.get('user', 'Admin')}")
-    menu = st.sidebar.selectbox("Navigasi", ["Money Tracker", "Student Admin", "Growth Analytics"])
-    
-    if st.sidebar.button("Logout"):
-        st.session_state['logged_in'] = False
-        st.rerun()
-
-    if menu == "Money Tracker":
-        st.subheader("💰 Catatan Keuangan")
-        # Copy-paste kode fitur Money Tracker lu di sini
 
     # --- MENU 1: MONEY TRACKER ---
     if menu == "💰 Money Tracker":
