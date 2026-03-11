@@ -25,7 +25,7 @@ lottie_wallet = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_yM
 lottie_success = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_vwb8596u.json")
 
 # --- CONFIG HALAMAN (Aesthetic Dark) ---
-st.set_page_config(page_title="Nayla Finance & Project", page_icon="👗", layout="wide")
+st.set_page_config(page_title="Nayla Finance & Project", page_icon="📊", layout="wide")
 
 # --- CUSTOM CSS (Neon Dark Luxury Update) ---
 st.markdown("""
@@ -96,7 +96,7 @@ if not st.session_state['logged_in']:
     # Tengahin Box Login
     _, col_auth, _ = st.columns([1, 1.5, 1])
     with col_auth:
-        st.markdown("<h1 style='text-align: center;'>👗 Project Nayla</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'>📊 Project Nayla</h1>", unsafe_allow_html=True)
         # Tampilkan Animasi Dompet Lottie
         if lottie_wallet:
             st_lottie(lottie_wallet, height=150, key="login_lottie")
