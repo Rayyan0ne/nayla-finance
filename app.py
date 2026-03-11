@@ -30,21 +30,20 @@ lottie_chart = load_lottieurl("https://assets9.lottiefiles.com/packages/lf20_qp1
 # --- CONFIG HALAMAN ---
 st.set_page_config(page_title="Nayla Ultra Project", page_icon="💎", layout="wide")
 
-# --- CUSTOM CSS (Keamanan & Tampilan Neon Dark) ---
+# --- CUSTOM CSS (DIPERBAIKI AGAR SIDEBAR BISA DIBUKA) ---
 st.markdown("""
     <style>
-    /* 1. KUNCI HEADER & MENU BAWAAN (Biar ga bisa diotak-atik) */
+    /* Sembunyikan menu bawaan & footer, tapi JANGAN sembunyiin header total */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     
-    .main { background-color: #121212; color: #e0e0e0; }
-    
-    @keyframes popIn {
-        0% { opacity: 0; transform: scale(0.9); }
-        100% { opacity: 1; transform: scale(1); }
+    /* CSS supaya tombol sidebar (menu) di HP tetep kelihatan */
+    header[data-testid="stHeader"] {
+        background: transparent;
     }
 
+    .main { background-color: #121212; color: #e0e0e0; }
+    
     .metric-card-dark {
         background: linear-gradient(145deg, #1e1e1e, #161616);
         padding: 25px;
@@ -52,12 +51,10 @@ st.markdown("""
         box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
         border: 1px solid #333;
         text-align: center;
-        animation: popIn 0.5s ease-out;
     }
-    .card-label { color: #aaaaaa !important; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
-    .card-value-income { color: #00ff88 !important; font-weight: bold; text-shadow: 0 0 15px rgba(0,255,136,0.3); }
-    .card-value-expense { color: #ff4b4b !important; font-weight: bold; text-shadow: 0 0 15px rgba(255,75,75,0.3); }
-    .card-value-saldo { color: #00d4ff !important; font-weight: bold; text-shadow: 0 0 15px rgba(0,212,255,0.3); }
+    .card-value-income { color: #00ff88 !important; font-weight: bold; }
+    .card-value-expense { color: #ff4b4b !important; font-weight: bold; }
+    .card-value-saldo { color: #00d4ff !important; font-weight: bold; }
 
     .student-card {
         background-color: #1e1e1e;
@@ -68,10 +65,11 @@ st.markdown("""
     }
 
     .stButton>button { border-radius: 10px; transition: 0.3s; }
-    .stButton>button:hover { background-color: #ff4b4b !important; color: white !important; transform: translateY(-2px); }
+    .stButton>button:hover { background-color: #ff4b4b !important; color: white !important; }
     
-    /* Input Styling */
-    .stTextInput>div>div>input, .stNumberInput>div>div>input { background-color: #252525; color: white; border-radius: 10px; border: 1px solid #444; }
+    .stTextInput>div>div>input, .stNumberInput>div>div>input { 
+        background-color: #252525; color: white; border-radius: 10px; border: 1px solid #444; 
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -115,15 +113,13 @@ if not st.session_state['logged_in']:
 
 # --- MAIN APP ---
 else:
-    # --- SIDEBAR NAVIGASI (DIKUNCI) ---
+    # --- SIDEBAR NAVIGASI ---
     st.sidebar.markdown(f"<h2 style='text-align: center;'>👑 {st.session_state['user']}</h2>", unsafe_allow_html=True)
     
     st.sidebar.write("### 🧭 Navigasi")
-    # Pake Radio biar ga ada tombol 'X' (Hapus)
     menu = st.sidebar.radio(
         "Pilih Dashboard:", 
-        ["💰 Money Tracker", "🎓 Student Admin", "📈 Growth Analytics"],
-        label_visibility="collapsed"
+        ["💰 Money Tracker", "🎓 Student Admin", "📈 Growth Analytics"]
     )
     
     st.sidebar.divider()
@@ -131,7 +127,6 @@ else:
         st.session_state['logged_in'] = False
         st.rerun()
 
-    # Buka koneksi DB utama
     conn = get_db_connection()
 
     # --- MENU 1: MONEY TRACKER ---
@@ -142,11 +137,10 @@ else:
             ti = df_fin[df_fin['type'] == 'Income']['amount'].sum()
             te = df_fin[df_fin['type'] == 'Expense']['amount'].sum()
             c1, c2, c3 = st.columns(3)
-            with c1: st.markdown(f"<div class='metric-card-dark'><p class='card-label'>Inflow</p><h2 class='card-value-income'>Rp {ti:,.0f}</h2></div>", unsafe_allow_html=True)
-            with c2: st.markdown(f"<div class='metric-card-dark'><p class='card-label'>Outflow</p><h2 class='card-value-expense'>Rp {te:,.0f}</h2></div>", unsafe_allow_html=True)
-            with c3: st.markdown(f"<div class='metric-card-dark'><p class='card-label'>Net Balance</p><h2 class='card-value-saldo'>Rp {ti-te:,.0f}</h2></div>", unsafe_allow_html=True)
+            with c1: st.markdown(f"<div class='metric-card-dark'><p>Inflow</p><h2 class='card-value-income'>Rp {ti:,.0f}</h2></div>", unsafe_allow_html=True)
+            with c2: st.markdown(f"<div class='metric-card-dark'><p>Outflow</p><h2 class='card-value-expense'>Rp {te:,.0f}</h2></div>", unsafe_allow_html=True)
+            with c3: st.markdown(f"<div class='metric-card-dark'><p>Net Balance</p><h2 class='card-value-saldo'>Rp {ti-te:,.0f}</h2></div>", unsafe_allow_html=True)
         
-        st.write("")
         with st.expander("➕ Tambah Data Keuangan"):
             cx, cy = st.columns(2)
             tipe = cx.selectbox("Tipe", ["Income", "Expense"])
@@ -171,15 +165,14 @@ else:
                     st.rerun()
                 st.divider()
 
-    # --- MENU 2: STUDENT ADMIN (5 STAGES CHECKLIST) ---
+    # --- MENU 2: STUDENT ADMIN (CHECKLIST 20% VER.) ---
     elif menu == "🎓 Student Admin":
         st.title("👩‍🏫 Student Management")
         
-        # Form Tambah Murid
         with st.expander("➕ Tambah Murid Baru"):
             n, c = st.columns(2)
             s_name = n.text_input("Nama Murid")
-            s_course = c.selectbox("Kursus", ["Dasar Menjahit VR", "Rancang Busana Digital", "Tekstil & Bahan"])
+            s_course = c.selectbox("Kursus", ["Dasar Menjahit VR", "Rancang Busana Digital"])
             if st.button("Simpan Murid", use_container_width=True):
                 cursor = conn.cursor()
                 cursor.execute("INSERT INTO students (student_name, course_name, username, progress) VALUES (%s, %s, %s, 0)", 
@@ -189,79 +182,60 @@ else:
 
         df_stu = pd.read_sql(f"SELECT * FROM students WHERE username='{st.session_state['user']}'", conn)
         
-        if df_stu.empty:
-            st.info("Belum ada murid terdaftar.")
-        else:
-            # List Tahapan Progres
-            stages = [
-                "Pengenalan Dasar Menjahit (VR Orientation)",
-                "Teknik Dasar Menjahit",
-                "Membaca Pola dan Memotong Kain",
-                "Pembuatan Produk Sederhana",
-                "Desain Kreatif dan Proyek Mandiri"
-            ]
+        stages = [
+            "Pengenalan Dasar Menjahit (VR Orientation)",
+            "Teknik Dasar Menjahit",
+            "Membaca Pola dan Memotong Kain",
+            "Pembuatan Produk Sederhana",
+            "Desain Kreatif dan Proyek Mandiri"
+        ]
 
-            for _, row in df_stu.iterrows():
-                with st.container():
-                    st.markdown(f"""<div class="student-card">
-                        <h3>👤 {row['student_name']}</h3>
-                        <p>📚 Kursus: {row['course_name']}</p>
-                    </div>""", unsafe_allow_html=True)
-                    
-                    # Hitung progres berdasarkan checklist
-                    completed_stages = []
-                    current_prog = int(row['progress'])
-                    
-                    # Logika Checklist
-                    st.write("**Daftar Pencapaian:**")
-                    c1, c2 = st.columns([3, 1])
-                    
-                    count_checked = 0
-                    for i, stage in enumerate(stages):
-                        # Asumsi: Kita simpan progres sebagai angka kelipatan 20
-                        is_done = c1.checkbox(f"{stage}", value=(current_prog >= (i+1)*20), key=f"ch_{row['id']}_{i}")
-                        if is_done:
-                            count_checked += 1
-                    
-                    new_calculated_prog = count_checked * 20
-                    
-                    # Tampilan Progress Bar
-                    st.progress(new_calculated_prog / 100)
-                    
-                    # Notifikasi jika 100%
-                    if new_calculated_prog == 100:
-                        st.success(f"🎉 Luar Biasa! **{row['student_name']}** sudah mampu dalam menjahit baju!")
-                        if lottie_success:
-                            st_lottie(lottie_success, height=100, key=f"lott_{row['id']}")
-                    else:
-                        st.write(f"Pencapaian: **{new_calculated_prog}%**")
+        for _, row in df_stu.iterrows():
+            with st.container():
+                st.markdown(f"""<div class="student-card">
+                    <h3>👤 {row['student_name']}</h3>
+                    <p>📚 {row['course_name']}</p>
+                </div>""", unsafe_allow_html=True)
+                
+                current_prog = int(row['progress'])
+                count_checked = 0
+                
+                st.write("**Tahapan Kursus:**")
+                for i, stage in enumerate(stages):
+                    if st.checkbox(f"{stage}", value=(current_prog >= (i+1)*20), key=f"ch_{row['id']}_{i}"):
+                        count_checked += 1
+                
+                new_prog = count_checked * 20
+                st.progress(new_prog / 100)
+                
+                if new_prog == 100:
+                    st.success(f"🎉 **{row['student_name']}** sudah mampu dalam menjahit baju!")
+                    if lottie_success: st_lottie(lottie_success, height=80, key=f"lp_{row['id']}")
+                else:
+                    st.write(f"Progres: **{new_prog}%**")
 
-                    # Tombol Aksi
-                    col_btn1, col_btn2, _ = st.columns([1, 1, 4])
-                    if col_btn1.button("💾 Simpan", key=f"upd_{row['id']}"):
-                        cursor = conn.cursor()
-                        cursor.execute("UPDATE students SET progress=%s WHERE id=%s", (new_calculated_prog, row['id']))
-                        conn.commit()
-                        st.toast(f"Progres {row['student_name']} diperbarui!")
-                        st.rerun()
-                    
-                    if col_btn2.button("🗑️ Hapus", key=f"del_{row['id']}"):
-                        cursor = conn.cursor()
-                        cursor.execute("DELETE FROM students WHERE id=%s", (row['id'],))
-                        conn.commit()
-                        st.rerun()
-                    
-                    st.divider()
+                c1, c2, _ = st.columns([1, 1, 4])
+                if c1.button("💾 Simpan", key=f"sv_{row['id']}"):
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE students SET progress=%s WHERE id=%s", (new_prog, row['id']))
+                    conn.commit()
+                    st.toast("Data Disimpan!")
+                    st.rerun()
+                
+                if c2.button("🗑️", key=f"dl_{row['id']}"):
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM students WHERE id=%s", (row['id'],))
+                    conn.commit()
+                    st.rerun()
+                st.divider()
 
-    # --- MENU 3: GROWTH ANALYTICS ---
+    # --- MENU 3: ANALYTICS ---
     elif menu == "📈 Growth Analytics":
-        df_fin = pd.read_sql(f"SELECT * FROM transactions WHERE username='{st.session_state['user']}' ORDER BY created_at DESC", conn)
         st.title("📈 Insight & Report")
+        df_fin = pd.read_sql(f"SELECT * FROM transactions WHERE username='{st.session_state['user']}'", conn)
         if not df_fin.empty:
             st.bar_chart(df_fin.set_index('created_at')['amount'])
-            st.write(f"Total Aktivitas: **{len(df_fin)} Transaksi**")
-            if lottie_chart: st_lottie(lottie_chart, height=200)
         else:
-            st.info("Belum ada data untuk dianalisis.")
+            st.info("Belum ada data.")
 
     conn.close()
