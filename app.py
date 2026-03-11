@@ -11,9 +11,9 @@ def get_db_connection():
             host=st.secrets["db_host"],
             user=st.secrets["db_user"],
             password=st.secrets["db_password"],
-            port=st.secrets["db_port"],
+            port=int(st.secrets["db_port"]), # Pastikan ini angka
             database=st.secrets["db_name"],
-            connection_timeout=10 # Tambah timeout supaya gak gampang mati
+            ssl_disabled=False # Aiven butuh ini
         )
     except Exception as e:
         st.error(f"Gagal konek ke Database: {e}")
