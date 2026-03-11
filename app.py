@@ -184,13 +184,8 @@ else:
         with st.expander("➕ Tambah Murid Baru"):
             n, c = st.columns(2)
             s_name = n.text_input("Nama Murid")
-            
-            # GANTI selectbox JADI radio BIAR GAK BISA DIHAPUS
-            s_course = c.radio(
-                "Pilih Kursus:", 
-                ["Dasar Menjahit VR", "Rancang Busana Digital"],
-                horizontal=False # Biar rapi ke bawah kalau teksnya panjang
-            )
+            # Pakai Radio biar nggak bisa disilang/dihapus
+            s_course = c.radio("Pilih Kursus:", ["Dasar Menjahit VR", "Rancang Busana Digital"])
             
             if st.button("Simpan Murid", use_container_width=True):
                 cursor = conn.cursor()
@@ -202,52 +197,72 @@ else:
 
         df_stu = pd.read_sql(f"SELECT * FROM students WHERE username='{st.session_state['user']}'", conn)
         
-        stages = [
-            "Pengenalan Dasar Menjahit (VR Orientation)",
-            "Teknik Dasar Menjahit",
-            "Membaca Pola dan Memotong Kain",
-            "Pembuatan Produk Sederhana",
-            "Desain Kreatif dan Proyek Mandiri"
-        ]
+        if df_stu.empty:
+            st.info("Belum ada murid terdaftar.")
+        else:
+            for _, row in df_stu.iterrows():
+                with st.container():
+                    st.markdown(f"""<div class="student-card">
+                        <h3>👤 {row['student_name']}</h3>
+                        <p>📚 Kursus: {row['course_name']}</p>
+                    </div>""", unsafe_allow_html=True)
+                    
+                    # TENTUKAN TAHAPAN BERDASARKAN KURSUS
+                    if row['course_name'] == "Dasar Menjahit VR":
+                        stages = [
+                            "Tahap 1 - Pengenalan Dasar Menjahit (VR Orientation)",
+                            "Tahap 2 - Teknik Dasar Menjahit",
+                            "Tahap 3 - Membaca Pola dan Memotong Kain",
+                            "Tahap 4 - Pembuatan Produk Sederhana",
+                            "Tahap 5 - Desain Kreatif dan Proyek Mandiri"
+                        ]
+                    else: # Rancang Busana Digital
+                        stages = [
+                            "Tahap 1 – Pengenalan Dasar Desain Busana Digital",
+                            "Tahap 2 – Sketsa Desain Busana",
+                            "Tahap 3 – Pembuatan Pola Digital",
+                            "Tahap 4 – Simulasi Busana 3D",
+                            "Tahap 5 – Proyek Desain Busana Digital"
+                        ]
 
-        for _, row in df_stu.iterrows():
-            with st.container():
-                st.markdown(f"""<div class="student-card">
-                    <h3>👤 {row['student_name']}</h3>
-                    <p>📚 {row['course_name']}</p>
-                </div>""", unsafe_allow_html=True)
-                
-                current_prog = int(row['progress'])
-                count_checked = 0
-                
-                st.write("**Tahapan Kursus:**")
-                for i, stage in enumerate(stages):
-                    if st.checkbox(f"{stage}", value=(current_prog >= (i+1)*20), key=f"ch_{row['id']}_{i}"):
-                        count_checked += 1
-                
-                new_prog = count_checked * 20
-                st.progress(new_prog / 100)
-                
-                if new_prog == 100:
-                    st.success(f"🎉 **{row['student_name']}** sudah mampu dalam menjahit baju!")
-                    if lottie_success: st_lottie(lottie_success, height=80, key=f"lp_{row['id']}")
-                else:
-                    st.write(f"Progres: **{new_prog}%**")
+                    current_prog = int(row['progress'])
+                    st.write("**Daftar Pencapaian:**")
+                    
+                    # Logika Checklist
+                    count_checked = 0
+                    for i, stage in enumerate(stages):
+                        # Ceklis otomatis nyala kalau progres di DB mencukupi
+                        is_done = st.checkbox(f"{stage}", value=(current_prog >= (i+1)*20), key=f"ch_{row['id']}_{i}")
+                        if is_done:
+                            count_checked += 1
+                    
+                    new_calculated_prog = count_checked * 20
+                    st.progress(new_calculated_prog / 100)
+                    
+                    # Notifikasi Selesai
+                    if new_calculated_prog == 100:
+                        pesan = "sudah mampu dalam menjahit baju!" if row['course_name'] == "Dasar Menjahit VR" else "sudah ahli dalam desain busana digital!"
+                        st.success(f"🎉 Luar Biasa! **{row['student_name']}** {pesan}")
+                        if lottie_success:
+                            st_lottie(lottie_success, height=100, key=f"lott_{row['id']}")
+                    else:
+                        st.write(f"Pencapaian: **{new_calculated_prog}%**")
 
-                c1, c2, _ = st.columns([1, 1, 4])
-                if c1.button("💾 Simpan", key=f"sv_{row['id']}"):
-                    cursor = conn.cursor()
-                    cursor.execute("UPDATE students SET progress=%s WHERE id=%s", (new_prog, row['id']))
-                    conn.commit()
-                    st.toast("Data Disimpan!")
-                    st.rerun()
-                
-                if c2.button("🗑️", key=f"dl_{row['id']}"):
-                    cursor = conn.cursor()
-                    cursor.execute("DELETE FROM students WHERE id=%s", (row['id'],))
-                    conn.commit()
-                    st.rerun()
-                st.divider()
+                    # Tombol Aksi
+                    c1, c2, _ = st.columns([1, 1, 4])
+                    if c1.button("💾 Simpan", key=f"upd_{row['id']}"):
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE students SET progress=%s WHERE id=%s", (new_calculated_prog, row['id']))
+                        conn.commit()
+                        st.toast(f"Progres {row['student_name']} diperbarui!")
+                        st.rerun()
+                    
+                    if c2.button("🗑️ Hapus", key=f"del_{row['id']}"):
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM students WHERE id=%s", (row['id'],))
+                        conn.commit()
+                        st.rerun()
+                    st.divider()
 
     # --- MENU 3: ANALYTICS ---
     elif menu == "📈 Growth Analytics":
