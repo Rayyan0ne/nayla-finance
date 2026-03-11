@@ -19,7 +19,7 @@ if 'logged_in' not in st.session_state:
 
 # --- UI AUTH ---
 if not st.session_state['logged_in']:
-    st.title("👗 Study Fashion x Nayla")
+    st.title("Project Nayla")
     tab1, tab2 = st.tabs(["Login", "Daftar Akun"])
     with tab1:
         u = st.text_input("Username")
