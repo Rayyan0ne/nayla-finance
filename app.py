@@ -122,6 +122,33 @@ else:
     df_fin = pd.read_sql(f"SELECT * FROM transactions WHERE username='{st.session_state['user']}' ORDER BY created_at DESC", conn)
     df_stu = pd.read_sql(f"SELECT * FROM students WHERE username='{st.session_state['user']}'", conn)
     conn.close()
+    
+    # --- PROTEKSI HALAMAN ---
+if not st.session_state['logged_in']:
+    _, col_auth, _ = st.columns([1, 1.5, 1])
+    with col_auth:
+        st.title("🔒 Restricted Access")
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+        if st.button("Masuk", use_container_width=True):
+            # Logika login lu di sini...
+            if u == "admin" and p == "admin": # Contoh simpel
+                st.session_state['logged_in'] = True
+                st.rerun()
+            else:
+                st.error("Siapa lu? Jangan iseng ya!")
+else:
+    # HALAMAN UTAMA HANYA MUNCUL JIKA SUDAH LOGIN
+    st.sidebar.title(f"Halo, {st.session_state.get('user', 'Admin')}")
+    menu = st.sidebar.selectbox("Navigasi", ["Money Tracker", "Student Admin", "Growth Analytics"])
+    
+    if st.sidebar.button("Logout"):
+        st.session_state['logged_in'] = False
+        st.rerun()
+
+    if menu == "Money Tracker":
+        st.subheader("💰 Catatan Keuangan")
+        # Copy-paste kode fitur Money Tracker lu di sini
 
     # --- MENU 1: MONEY TRACKER ---
     if menu == "💰 Money Tracker":
