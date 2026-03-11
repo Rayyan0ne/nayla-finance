@@ -197,7 +197,7 @@ else:
                 with st.container():
                     col_icon, col_data, col_del = st.columns([0.6, 5, 1.2])
                     
-                    icon = "💹" if row['type'] == 'Income' else "🔻"
+                    icon = "💵" if row['type'] == 'Income' else "🔻"
                     col_icon.markdown(f"<h2 style='text-align:center; margin-top:10px;'>{icon}</h2>", unsafe_allow_html=True)
                     
                     with col_data:
