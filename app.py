@@ -143,13 +143,24 @@ else:
         
         with st.expander("➕ Tambah Data Keuangan"):
             cx, cy = st.columns(2)
-            tipe = cx.selectbox("Tipe", ["Income", "Expense"])
-            amt = cy.number_input("Nominal", min_value=0, step=1000)
+            
+            # GANTI selectbox JADI radio BIAR GAK BISA DIHAPUS
+            tipe = cx.radio(
+                "Tipe Transaksi:", 
+                ["Income", "Expense"], 
+                horizontal=True,
+                help="Pilih salah satu (Pemasukan atau Pengeluaran)"
+            )
+            
+            amt = cy.number_input("Nominal (Rp)", min_value=0, step=1000)
             note = st.text_input("Keterangan")
+            
             if st.button("Simpan Transaksi", use_container_width=True):
                 cursor = conn.cursor()
-                cursor.execute("INSERT INTO transactions (username, type, amount, note) VALUES (%s, %s, %s, %s)", (st.session_state['user'], tipe, amt, note))
+                cursor.execute("INSERT INTO transactions (username, type, amount, note) VALUES (%s, %s, %s, %s)", 
+                             (st.session_state['user'], tipe, amt, note))
                 conn.commit()
+                st.toast("Data Berhasil Disimpan!")
                 st.rerun()
 
         st.subheader("📜 Riwayat")
