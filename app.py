@@ -87,7 +87,7 @@ if not st.session_state['logged_in']:
     # Tengahin Box Login
     _, col_auth, _ = st.columns([1, 1.5, 1])
     with col_auth:
-        st.markdown("<h1 style='text-align: center;'>👗 Project Nayla</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'> Project Nayla</h1>", unsafe_allow_html=True)
         # Tampilkan Animasi Dompet Lottie
         if lottie_wallet:
             st_lottie(lottie_wallet, height=150, key="login_lottie")
