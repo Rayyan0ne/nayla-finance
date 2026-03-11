@@ -71,7 +71,6 @@ if not st.session_state['logged_in']:
     with col_auth:
         st.markdown("<h1 style='text-align: center;'>💎 Nayla Project v2</h1>", unsafe_allow_html=True)
         if lottie_wallet: st_lottie(lottie_wallet, height=150)
-        
         tab1, tab2 = st.tabs(["🔒 Login", "✍️ Register"])
         with tab1:
             u = st.text_input("Username")
@@ -104,12 +103,10 @@ if not st.session_state['logged_in']:
 else:
     st.sidebar.markdown(f"<h2 style='text-align: center;'>👑 {st.session_state['user']}</h2>", unsafe_allow_html=True)
     st.sidebar.write("### 🧭 Navigasi")
-    
     menu = st.sidebar.radio(
         "Pilih Dashboard:", 
         ["💰 Money Tracker", "🎓 Student Admin", "📈 Growth Analytics", "🥗 Healthy Kitchen"]
     )
-    
     st.sidebar.divider()
     if st.sidebar.button("🚪 Log Out", use_container_width=True):
         st.session_state['logged_in'] = False
@@ -117,7 +114,6 @@ else:
 
     conn = get_db_connection()
 
-    # --- MENU 1: MONEY TRACKER ---
     if menu == "💰 Money Tracker":
         df_fin = pd.read_sql(f"SELECT * FROM transactions WHERE username='{st.session_state['user']}' ORDER BY created_at DESC", conn)
         st.title("💸 Financial Dashboard")
@@ -141,7 +137,6 @@ else:
                 conn.commit()
                 st.rerun()
 
-    # --- MENU 2: STUDENT ADMIN (FITUR TAHAPAN LENGKAP) ---
     elif menu == "🎓 Student Admin":
         st.title("👩‍🏫 Student Management")
         with st.expander("➕ Tambah Murid Baru"):
@@ -160,17 +155,15 @@ else:
             for _, row in df_stu.iterrows():
                 with st.container():
                     st.markdown(f"<div class='student-card'><h3>👤 {row['student_name']}</h3><p>📚 {row['course_name']}</p></div>", unsafe_allow_html=True)
-                    
                     if row['course_name'] == "Dasar Menjahit VR":
-                        stages = ["Tahap 1 - Orientasi VR", "Tahap 2 - Teknik Dasar", "Tahap 3 - Pola & Potong", "Tahap 4 - Produk Sederhana", "Tahap 5 - Proyek Mandiri"]
+                        stages = ["Tahap 1 - Pengenalan Dasar Menjahit (VR Orientation)", "Tahap 2 - Teknik Dasar Menjahit", "Tahap 3 - Membaca Pola dan Memotong Kain", "Tahap 4 - Pembuatan Produk Sederhana", "Tahap 5 - Desain Kreatif dan Proyek Mandiri"]
                     else:
-                        stages = ["Tahap 1 – Pengenalan Dasar", "Tahap 2 – Sketsa Desain", "Tahap 3 – Pola Digital", "Tahap 4 – Simulasi 3D", "Tahap 5 – Proyek Digital"]
+                        stages = ["Tahap 1 – Pengenalan Dasar Desain Busana Digital", "Tahap 2 – Sketsa Desain Busana", "Tahap 3 – Pembuatan Pola Digital", "Tahap 4 – Simulasi Busana 3D", "Tahap 5 – Proyek Desain Busana Digital"]
                     
                     count_checked = 0
                     for i, stage in enumerate(stages):
                         if st.checkbox(f"{stage}", value=(int(row['progress']) >= (i+1)*20), key=f"ch_{row['id']}_{i}"):
                             count_checked += 1
-                    
                     new_prog = count_checked * 20
                     st.progress(new_prog / 100)
                     if st.button("💾 Simpan Progres", key=f"btn_{row['id']}"):
@@ -179,30 +172,25 @@ else:
                         conn.commit()
                         st.rerun()
 
-    # --- MENU 3: ANALYTICS ---
     elif menu == "📈 Growth Analytics":
         st.title("📈 Insight & Report")
         df_fin = pd.read_sql(f"SELECT * FROM transactions WHERE username='{st.session_state['user']}'", conn)
         if not df_fin.empty:
             st.bar_chart(df_fin.set_index('created_at')['amount'])
 
-    # --- MENU 4: HEALTHY KITCHEN (6 RESEP LENGKAP) ---
     elif menu == "🥗 Healthy Kitchen":
         st.title("🥗 Healthy Recipe Guide")
         cat = st.radio("Kategori:", ["Minuman Segar (3)", "Makanan Sehat (3)"], horizontal=True)
-        
         recipes = {
-            "Es Teh Lemon Madu": {"ing": ["Teh Celup", "Lemon", "Madu"], "steps": ["Seduh teh", "Campur madu/lemon", "Es batu"]},
-            "Infused Water Timun": {"ing": ["Timun", "Mint", "Air"], "steps": ["Iris timun", "Masukan mint", "Simpan kulkas"]},
-            "Smoothie Pisang": {"ing": ["Pisang", "Coklat", "Susu"], "steps": ["Potong pisang", "Blender semua", "Sajikan"]},
-            "Orak Arik Telur": {"ing": ["Telur", "Wortel", "Kol"], "steps": ["Tumis sayur", "Orak-arik telur", "Bumbui"]},
-            "Pecel Sayur": {"ing": ["Kangkung", "Toge", "Bumbu Kacang"], "steps": ["Rebus sayur", "Seduh bumbu", "Siram"]},
-            "Tumis Tempe": {"ing": ["Tempe", "Kacang Panjang", "Kecap"], "steps": ["Goreng tempe", "Tumis bumbu", "Campur semua"]}
+            "Es Teh Lemon Madu": {"ing": ["1 Kantong Teh", "1/2 Lemon", "2 sdm Madu", "Es batu"], "steps": ["Seduh teh", "Masukkan madu & lemon", "Tambahkan es", "Siap diminum"], "msg": "Segar banget! 🍋"},
+            "Infused Water Timun Mint": {"ing": ["1 Timun iris", "5 Daun Mint", "600ml Air"], "steps": ["Iris timun", "Remas mint", "Tuang air", "Kulkas 2 jam"], "msg": "Detox alami! 🥒"},
+            "Smoothie Pisang Coklat": {"ing": ["2 Pisang", "1 sdm Coklat", "100ml Susu"], "steps": ["Potong pisang", "Blender semua", "Tuang gelas"], "msg": "Energi booster! 🍌"},
+            "Orak Arik Telur Sayur": {"ing": ["2 Telur", "Wortel", "Kol", "Bawang"], "steps": ["Tumis bawang", "Masak sayur", "Orak-arik telur", "Campur semua"], "msg": "Protein & Serat! 🍳"},
+            "Pecel Sayur Simpel": {"ing": ["Kangkung/Bayam", "Toge", "Bumbu Pecel"], "steps": ["Rebus sayuran", "Larutkan bumbu", "Siram bumbu"], "msg": "Sehat & Murah! 🥜"},
+            "Tumis Tempe Kacang Panjang": {"ing": ["Tempe", "Kacang Panjang", "Kecap", "Cabai"], "steps": ["Goreng tempe", "Tumis bumbu", "Masak kacang", "Beri kecap"], "msg": "Lauk andalan! 🥢"}
         }
-        
-        choice = st.radio("Pilih Menu:", ["Es Teh Lemon Madu", "Infused Water Timun", "Smoothie Pisang"] if "Minuman" in cat else ["Orak Arik Telur", "Pecel Sayur", "Tumis Tempe"])
+        choice = st.radio("Pilih Menu:", ["Es Teh Lemon Madu", "Infused Water Timun Mint", "Smoothie Pisang Coklat"] if "Minuman" in cat else ["Orak Arik Telur Sayur", "Pecel Sayur Simpel", "Tumis Tempe Kacang Panjang"])
         curr = recipes[choice]
-        
         c1, c2 = st.columns(2)
         with c1:
             st.write("🛒 **Bahan:**")
@@ -213,5 +201,6 @@ else:
             for i, s in enumerate(curr["steps"]):
                 if st.checkbox(s, key=f"step_{choice}_{i}"): done += 1
             st.progress(done/len(curr["steps"]))
+            if done == len(curr["steps"]): st.success(curr["msg"])
 
-    conn.close() # Tutup koneksi di akhir semua menu
+    conn.close()
