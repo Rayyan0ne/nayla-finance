@@ -77,7 +77,7 @@ st.markdown("""
     .stTextInput>div>div>input { border-radius: 10px; }
     
     </style>
-    """, unsafe_allow_stdio=True)
+    """, unsafe_allow_html=True)
 
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
