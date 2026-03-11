@@ -27,7 +27,7 @@ lottie_wallet = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_yM
 lottie_success = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_vwb8596u.json")
 
 # --- CONFIG HALAMAN (Biar Aesthetic) ---
-st.set_page_config(page_title="Nayla Finance & Project", page_icon="👗", layout="wide")
+st.set_page_config(page_title="Nayla Finance & Project", page_icon="📊", layout="wide")
 
 # --- CUSTOM CSS (Rahasia Animasi & Desain Premium) ---
 st.markdown("""
