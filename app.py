@@ -144,7 +144,7 @@ else:
 
     # --- MENU 1: PERSONAL FINANCE ---
     if menu == "💰 Personal Finance":
-        st.title("💸 Catatan Keuangan Nayla")
+        st.title("💸 Catatan Keuangan 💸")
         
         conn = get_db_connection()
         query = f"SELECT id, type, amount, note, created_at FROM transactions WHERE username='{st.session_state['user']}' ORDER BY created_at DESC"
