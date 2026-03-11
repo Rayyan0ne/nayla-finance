@@ -127,7 +127,7 @@ else:
     )
     
     st.sidebar.divider()
-    if st.sidebar.button("🚪 Keluar Sistem", use_container_width=True):
+    if st.sidebar.button("🚪 Log Out", use_container_width=True):
         st.session_state['logged_in'] = False
         st.rerun()
 
