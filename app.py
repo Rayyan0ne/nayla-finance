@@ -180,34 +180,53 @@ else:
                     st.rerun()
                 st.divider()
 
-    # --- MENU 2: STUDENT ADMIN ---
-    elif menu == "🎓 Student Admin":
+    # --- MENU 2: STUDENT ADMIN (DENGAN PROGRES) ---
+    if menu == "🎓 Student Admin":
         st.title("👩‍🏫 Student Management")
-        if not df_stu.empty:
-            st.markdown(f"<div class='student-stats-card'><span class='student-label'>Murid Terdaftar: </span><span class='student-count'>{len(df_stu)} Orang</span></div>", unsafe_allow_html=True)
         
-        with st.expander("👤 Daftar Murid Baru"):
-            nx, ny = st.columns(2)
-            s_name = nx.text_input("Nama Murid")
-            s_course = ny.selectbox("Kursus", ["Dasar Menjahit VR", "Rancang Busana Digital", "Tekstil & Bahan"])
-            if st.button("Daftarkan Murid", use_container_width=True):
-                conn = get_db_connection()
+        # Form Tambah Murid
+        with st.expander("➕ Tambah Murid Baru"):
+            n, c = st.columns(2)
+            s_name = n.text_input("Nama Murid")
+            s_course = c.selectbox("Kursus", ["Dasar Menjahit VR", "Rancang Busana Digital"])
+            if st.button("Simpan Murid"):
                 cursor = conn.cursor()
-                cursor.execute("INSERT INTO students (student_name, course_name, username, progress) VALUES (%s, %s, %s, 0)", (s_name, s_course, st.session_state['user']))
+                cursor.execute("INSERT INTO students (student_name, course_name, username, progress) VALUES (%s, %s, %s, 0)", 
+                             (s_name, s_course, st.session_state['user']))
                 conn.commit()
-                conn.close()
                 st.rerun()
 
-        for index, row in df_stu.iterrows():
+        # List Murid dengan Progress Bar
+        df_stu = pd.read_sql(f"SELECT * FROM students WHERE username='{st.session_state['user']}'", conn)
+        for _, row in df_stu.iterrows():
             with st.container():
-                st.write(f"### {row['student_name']}")
-                if st.button("🗑️ Hapus Murid", key=f"dels_{row['id']}"):
-                    conn = get_db_connection()
+                st.markdown(f"""<div class="student-card">
+                    <h3>👤 {row['student_name']}</h3>
+                    <p>📚 Kursus: {row['course_name']}</p>
+                </div>""", unsafe_allow_html=True)
+                
+                # Fitur Progres & Persentase
+                col_prog, col_act = st.columns([4, 1])
+                current_prog = int(row['progress'])
+                new_prog = col_prog.slider(f"Update Progres {row['student_name']} (%)", 0, 100, current_prog, key=f"sld_{row['id']}")
+                
+                # Tombol Update & Hapus
+                c1, c2 = col_act.columns(2)
+                if c1.button("💾", key=f"upd_{row['id']}", help="Update Progres"):
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE students SET progress=%s WHERE id=%s", (new_prog, row['id']))
+                    conn.commit()
+                    st.success("Updated!")
+                    st.rerun()
+                
+                if c2.button("🗑️", key=f"del_{row['id']}", help="Hapus Murid"):
                     cursor = conn.cursor()
                     cursor.execute("DELETE FROM students WHERE id=%s", (row['id'],))
                     conn.commit()
-                    conn.close()
                     st.rerun()
+                
+                st.progress(new_prog / 100)
+                st.write(f"**Pencapaian: {new_prog}%**")
                 st.divider()
 
     # --- MENU 3: GROWTH ANALYTICS ---
