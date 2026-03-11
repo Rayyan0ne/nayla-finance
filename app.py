@@ -180,15 +180,24 @@ else:
     elif menu == "🎓 Student Admin":
         st.title("👩‍🏫 Student Management")
         
+        # Form Tambah Murid
         with st.expander("➕ Tambah Murid Baru"):
             n, c = st.columns(2)
             s_name = n.text_input("Nama Murid")
-            s_course = c.selectbox("Kursus", ["Dasar Menjahit VR", "Rancang Busana Digital"])
+            
+            # GANTI selectbox JADI radio BIAR GAK BISA DIHAPUS
+            s_course = c.radio(
+                "Pilih Kursus:", 
+                ["Dasar Menjahit VR", "Rancang Busana Digital"],
+                horizontal=False # Biar rapi ke bawah kalau teksnya panjang
+            )
+            
             if st.button("Simpan Murid", use_container_width=True):
                 cursor = conn.cursor()
                 cursor.execute("INSERT INTO students (student_name, course_name, username, progress) VALUES (%s, %s, %s, 0)", 
                              (s_name, s_course, st.session_state['user']))
                 conn.commit()
+                st.success(f"Berhasil menambah murid: {s_name}")
                 st.rerun()
 
         df_stu = pd.read_sql(f"SELECT * FROM students WHERE username='{st.session_state['user']}'", conn)
