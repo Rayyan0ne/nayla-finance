@@ -171,10 +171,11 @@ else:
                     st.rerun()
                 st.divider()
 
-    # --- MENU 2: STUDENT ADMIN (FIXED PROGRESS) ---
+    # --- MENU 2: STUDENT ADMIN (5 STAGES CHECKLIST) ---
     elif menu == "🎓 Student Admin":
         st.title("👩‍🏫 Student Management")
         
+        # Form Tambah Murid
         with st.expander("➕ Tambah Murid Baru"):
             n, c = st.columns(2)
             s_name = n.text_input("Nama Murid")
@@ -191,6 +192,15 @@ else:
         if df_stu.empty:
             st.info("Belum ada murid terdaftar.")
         else:
+            # List Tahapan Progres
+            stages = [
+                "Pengenalan Dasar Menjahit (VR Orientation)",
+                "Teknik Dasar Menjahit",
+                "Membaca Pola dan Memotong Kain",
+                "Pembuatan Produk Sederhana",
+                "Desain Kreatif dan Proyek Mandiri"
+            ]
+
             for _, row in df_stu.iterrows():
                 with st.container():
                     st.markdown(f"""<div class="student-card">
@@ -198,27 +208,49 @@ else:
                         <p>📚 Kursus: {row['course_name']}</p>
                     </div>""", unsafe_allow_html=True)
                     
-                    col_prog, col_act = st.columns([4, 1])
+                    # Hitung progres berdasarkan checklist
+                    completed_stages = []
                     current_prog = int(row['progress'])
                     
-                    # Slider Progres
-                    new_prog = col_prog.slider(f"Progres {row['student_name']} (%)", 0, 100, current_prog, key=f"sld_{row['id']}")
+                    # Logika Checklist
+                    st.write("**Daftar Pencapaian:**")
+                    c1, c2 = st.columns([3, 1])
                     
-                    c1, c2 = col_act.columns(2)
-                    if c1.button("💾", key=f"upd_{row['id']}", help="Simpan Perubahan"):
+                    count_checked = 0
+                    for i, stage in enumerate(stages):
+                        # Asumsi: Kita simpan progres sebagai angka kelipatan 20
+                        is_done = c1.checkbox(f"{stage}", value=(current_prog >= (i+1)*20), key=f"ch_{row['id']}_{i}")
+                        if is_done:
+                            count_checked += 1
+                    
+                    new_calculated_prog = count_checked * 20
+                    
+                    # Tampilan Progress Bar
+                    st.progress(new_calculated_prog / 100)
+                    
+                    # Notifikasi jika 100%
+                    if new_calculated_prog == 100:
+                        st.success(f"🎉 Luar Biasa! **{row['student_name']}** sudah mampu dalam menjahit baju!")
+                        if lottie_success:
+                            st_lottie(lottie_success, height=100, key=f"lott_{row['id']}")
+                    else:
+                        st.write(f"Pencapaian: **{new_calculated_prog}%**")
+
+                    # Tombol Aksi
+                    col_btn1, col_btn2, _ = st.columns([1, 1, 4])
+                    if col_btn1.button("💾 Simpan", key=f"upd_{row['id']}"):
                         cursor = conn.cursor()
-                        cursor.execute("UPDATE students SET progress=%s WHERE id=%s", (new_prog, row['id']))
+                        cursor.execute("UPDATE students SET progress=%s WHERE id=%s", (new_calculated_prog, row['id']))
                         conn.commit()
+                        st.toast(f"Progres {row['student_name']} diperbarui!")
                         st.rerun()
                     
-                    if c2.button("🗑️", key=f"del_stu_{row['id']}", help="Hapus Murid"):
+                    if col_btn2.button("🗑️ Hapus", key=f"del_{row['id']}"):
                         cursor = conn.cursor()
                         cursor.execute("DELETE FROM students WHERE id=%s", (row['id'],))
                         conn.commit()
                         st.rerun()
                     
-                    st.progress(new_prog / 100)
-                    st.write(f"**Pencapaian: {new_prog}%**")
                     st.divider()
 
     # --- MENU 3: GROWTH ANALYTICS ---
