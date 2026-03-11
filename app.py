@@ -7,15 +7,19 @@ from streamlit_lottie import st_lottie
 # --- FUNGSI AMAN UNTUK KONEKSI ---
 def get_db_connection():
     try:
+        # Menghapus spasi atau tanda kutip sisa di Secrets
+        raw_host = st.secrets["db_host"].strip().replace('"', '').replace("'", "")
+        
         return mysql.connector.connect(
-            host=st.secrets["db_host"],
-            user=st.secrets["db_user"],
-            password=st.secrets["db_password"],
-            port=int(st.secrets["db_port"]), # Pastikan ini angka
-            database=st.secrets["db_name"],
-            ssl_disabled=False # Aiven butuh ini
+            host=raw_host,
+            user=st.secrets["db_user"].strip(),
+            password=st.secrets["db_password"].strip(),
+            port=int(st.secrets["db_port"]),
+            database=st.secrets["db_name"].strip(),
+            ssl_disabled=False # Aiven butuh SSL aktif
         )
     except Exception as e:
+        # Biar kita tau error aslinya apa kalau gagal
         st.error(f"Gagal konek ke Database: {e}")
         return None
 
