@@ -4,24 +4,35 @@ import pandas as pd
 import requests
 from streamlit_lottie import st_lottie
 
-# --- FUNGSI AMAN UNTUK KONEKSI ---
-def get_db_connection():
-    try:
-        # Menghapus spasi atau tanda kutip sisa di Secrets
-        raw_host = st.secrets["db_host"].strip().replace('"', '').replace("'", "")
-        
-        conn = mysql.connector.connect(
-            host=raw_host,
-            user=st.secrets["db_user"].strip(),
-            password=st.secrets["db_password"].strip(),
-            port=int(st.secrets["db_port"]),
-            database=st.secrets["db_name"].strip(),
-            ssl_disabled=False 
-        )
-        return conn
-    except Exception as e:
-        st.error(f"Gagal konek ke Database: {e}")
-        return None
+# --- GAYA JAVA: DATABASE MANAGER CLASS ---
+# Ini mirip seperti kamu membuat class DatabaseConfig di Java
+class DatabaseManager:
+    def __init__(self):
+        # Mengambil konfigurasi dari secrets (ini seperti constructor)
+        self.host = st.secrets["db_host"].strip().replace('"', '').replace("'", "")
+        self.user = st.secrets["db_user"].strip()
+        self.password = st.secrets["db_password"].strip()
+        self.port = int(st.secrets["db_port"])
+        self.database = st.secrets["db_name"].strip()
+
+    def get_connection(self):
+        try:
+            conn = mysql.connector.connect(
+                host=self.host,
+                user=self.user,
+                password=self.password,
+                port=self.port,
+                database=self.database,
+                ssl_disabled=False 
+            )
+            return conn
+        except Exception as e:
+            st.error(f"Gagal konek ke Database (OOP Style): {e}")
+            return None
+
+# --- INISIALISASI OBJECT ---
+# Seperti: DatabaseManager db = new DatabaseManager();
+db = DatabaseManager()
 
 def load_lottieurl(url: str):
     try:
@@ -32,7 +43,6 @@ def load_lottieurl(url: str):
 # --- CONFIG ---
 st.set_page_config(page_title="Finance Project", page_icon="💎", layout="wide")
 
-# Cache animasi agar tidak reload terus
 if 'lottie_wallet' not in st.session_state:
     st.session_state.lottie_wallet = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_yM949E.json")
 if 'lottie_success' not in st.session_state:
@@ -77,7 +87,7 @@ if not st.session_state['logged_in']:
             u = st.text_input("Username")
             p = st.text_input("Password", type="password")
             if st.button("Masuk Sekarang", use_container_width=True):
-                conn = get_db_connection()
+                conn = db.get_connection() # Memanggil method dari object db
                 if conn:
                     cursor = conn.cursor(dictionary=True)
                     cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (u, p))
@@ -95,7 +105,7 @@ if not st.session_state['logged_in']:
             new_p = st.text_input("Password Baru", type="password", key="reg_p")
             if st.button("Buat Akun", use_container_width=True):
                 if new_u and new_p:
-                    conn = get_db_connection()
+                    conn = db.get_connection()
                     if conn:
                         try:
                             cursor = conn.cursor()
@@ -116,14 +126,11 @@ else:
         st.session_state['logged_in'] = False
         st.rerun()
 
-    conn = get_db_connection()
+    conn = db.get_connection()
     if not conn: st.stop()
 
-    # MENU 1: MONEY TRACKER
     if menu == "💰 Money Tracker":
         st.title("💸 Financial Dashboard")
-        
-        # Menggunakan query yang aman
         query = "SELECT * FROM transactions WHERE username=%s ORDER BY created_at DESC"
         df_fin = pd.read_sql(query, conn, params=(st.session_state['user'],))
         
@@ -161,7 +168,6 @@ else:
                     st.rerun()
                 st.divider()
 
-    # MENU 2: STUDENT ADMIN
     elif menu == "🎓 Student Admin":
         st.title("👩‍🏫 Student Management")
         with st.expander("➕ Tambah Murid Baru"):
@@ -179,12 +185,10 @@ else:
         for _, row in df_stu.iterrows():
             st.markdown(f"<div class='student-card'><h3>👤 {row['student_name']}</h3><p>📚 {row['course_name']}</p></div>", unsafe_allow_html=True)
             
-            # Logika Progress
             stages = ["Tahap 1", "Tahap 2", "Tahap 3", "Tahap 4", "Tahap 5"]
             cols = st.columns(5)
             checked_count = 0
             for i in range(5):
-                # Menentukan status awal checkbox berdasarkan progress di DB
                 is_checked = cols[i].checkbox(f"T{i+1}", value=(int(row['progress']) >= (i+1)*20), key=f"ch_{row['id']}_{i}")
                 if is_checked:
                     checked_count += 1
@@ -198,18 +202,17 @@ else:
                     st_lottie(st.session_state.lottie_success, height=100, key=f"l_{row['id']}")
             
             c1, c2, _ = st.columns([1, 1, 4])
-            if c1.button("💾", key=f"s_{row['id']}", help="Simpan Progress"):
+            if c1.button("💾", key=f"s_{row['id']}"):
                 cursor = conn.cursor()
                 cursor.execute("UPDATE students SET progress=%s WHERE id=%s", (new_prog, row['id']))
                 conn.commit()
                 st.toast("Progress disimpan!")
-            if c2.button("🗑️", key=f"d_{row['id']}", help="Hapus Murid"):
+            if c2.button("🗑️", key=f"d_{row['id']}"):
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM students WHERE id=%s", (row['id'],))
                 conn.commit()
                 st.rerun()
 
-    # MENU 3: HEALTHY KITCHEN
     elif menu == "🥗 Healthy Kitchen":
         st.title("🥗 Healthy Recipe Guide")
         recipes = {
