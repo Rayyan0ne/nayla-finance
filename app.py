@@ -110,9 +110,7 @@ if not st.session_state['logged_in']:
 # --- MAIN APP ---
 else:
     st.sidebar.markdown(f"<h2 style='text-align: center;'>👑 {st.session_state['user']}</h2>", unsafe_allow_html=True)
-    
-    # HANYA SATU MENU
-    st.sidebar.info("Dashboard Active: Money Tracker")
+    st.sidebar.info("Dashboard Aktif: Money Tracker")
     
     if st.sidebar.button("🚪 Log Out", use_container_width=True):
         st.session_state['logged_in'] = False
@@ -121,12 +119,20 @@ else:
     conn = db.get_connection()
     if not conn: st.stop()
 
-    # --- MONEY TRACKER ONLY ---
-    st.title("💸 Financial Dashboard")
+    # --- DATA RETRIEVAL ---
     query = "SELECT * FROM transactions WHERE username=%s ORDER BY created_at ASC"
     df_fin = pd.read_sql(query, conn, params=(st.session_state['user'],))
     
-    # Hitung Metrik
+    # Konversi string tanggal ke format datetime pandas
+    if not df_fin.empty:
+        df_fin['created_at'] = pd.to_datetime(df_fin['created_at'])
+        # Tambahkan kolom format tanggal yang lebih simpel (YYYY-MM-DD)
+        df_fin['tanggal'] = df_fin['created_at'].dt.date
+
+    # --- DASHBOARD UI ---
+    st.title("💸 Financial Dashboard")
+    
+    # Hitung Metrik Utama
     ti = df_fin[df_fin['type'] == 'Income']['amount'].sum() if not df_fin.empty else 0
     te = df_fin[df_fin['type'] == 'Expense']['amount'].sum() if not df_fin.empty else 0
     
@@ -135,39 +141,54 @@ else:
     with c2: st.markdown(f"<div class='metric-card-dark'><p>Outflow</p><h2 class='card-value-expense'>Rp {te:,.0f}</h2></div>", unsafe_allow_html=True)
     with c3: st.markdown(f"<div class='metric-card-dark'><p>Net Balance</p><h2 class='card-value-saldo'>Rp {ti-te:,.0f}</h2></div>", unsafe_allow_html=True)
 
-    # --- KURVA DIAGRAM MONEY ---
+    # --- DIAGRAM BATANG BULANAN/HARIAN ---
     if not df_fin.empty:
-        st.subheader("📈 Money Trend")
-        # Menyiapkan data untuk chart
-        df_fin['created_at'] = pd.to_datetime(df_fin['created_at'])
-        chart_data = df_fin.pivot_table(index='created_at', columns='type', values='amount', aggfunc='sum').fillna(0)
-        st.line_chart(chart_data)
+        st.subheader("📊 Analisis Keuangan Per Tanggal")
+        # Grouping data berdasarkan tanggal dan tipe untuk chart
+        chart_df = df_fin.groupby(['tanggal', 'type'])['amount'].sum().unstack(fill_value=0)
+        st.bar_chart(chart_df)
 
+    # --- FORM INPUT ---
     with st.expander("➕ Tambah Data Keuangan"):
         tipe = st.radio("Tipe Transaksi:", ["Income", "Expense"], horizontal=True)
         amt = st.number_input("Nominal (Rp)", min_value=0, step=1000)
         note = st.text_input("Keterangan")
+        # Input tanggal manual jika ingin custom, atau otomatis pakai hari ini
+        tgl_input = st.date_input("Pilih Tanggal Transaksi")
+        
         if st.button("Simpan Transaksi"):
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO transactions (username, type, amount, note) VALUES (%s, %s, %s, %s)", 
-                         (st.session_state['user'], tipe, amt, note))
+            # Menyimpan data termasuk kolom tanggal/timestamp
+            cursor.execute("INSERT INTO transactions (username, type, amount, note, created_at) VALUES (%s, %s, %s, %s, %s)", 
+                         (st.session_state['user'], tipe, amt, note, tgl_input))
             conn.commit()
+            st.success("Data berhasil disimpan!")
             st.rerun()
 
-    st.subheader("📜 Riwayat")
+    # --- RIWAYAT TRANSAKSI ---
+    st.subheader("📜 Riwayat Transaksi")
     if df_fin.empty:
         st.info("Belum ada transaksi.")
     else:
-        # Sort desc untuk history (yang terbaru di atas)
+        # Menampilkan data terbaru di atas (iloc[::-1])
         for _, row in df_fin.iloc[::-1].iterrows():
-            c_icon, c_txt, c_del = st.columns([0.5, 4, 1])
-            c_icon.write("💰" if row['type'] == 'Income' else "🔻")
-            c_txt.write(f"**{row['note']}** - Rp {row['amount']:,.0f} ({row['created_at']})")
-            if c_del.button("🗑️", key=f"del_fin_{row['id']}"):
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM transactions WHERE id=%s", (row['id'],))
-                conn.commit()
-                st.rerun()
-            st.divider()
+            with st.container():
+                col_icon, col_detail, col_delete = st.columns([0.5, 4, 1])
+                
+                icon = "💰" if row['type'] == 'Income' else "🔻"
+                col_icon.write(f"### {icon}")
+                
+                # Menampilkan keterangan, nominal, dan TANGGAL
+                tgl_str = row['created_at'].strftime("%d %b %Y")
+                col_detail.markdown(f"**{row['note']}**")
+                col_detail.markdown(f"<small>{tgl_str} | {row['type']}</small>", unsafe_allow_html=True)
+                col_detail.write(f"Rp {row['amount']:,.0f}")
+                
+                if col_delete.button("🗑️", key=f"del_{row['id']}"):
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM transactions WHERE id=%s", (row['id'],))
+                    conn.commit()
+                    st.rerun()
+                st.divider()
 
     conn.close()
