@@ -30,7 +30,7 @@ def load_lottieurl(url: str):
     except: return None
 
 # --- CONFIG ---
-st.set_page_config(page_title="Nayla Ultra Project", page_icon="💎", layout="wide")
+st.set_page_config(page_title="Finance Project", page_icon="💎", layout="wide")
 
 # Cache animasi agar tidak reload terus
 if 'lottie_wallet' not in st.session_state:
@@ -68,7 +68,7 @@ if 'logged_in' not in st.session_state:
 if not st.session_state['logged_in']:
     _, col_auth, _ = st.columns([1, 1.5, 1])
     with col_auth:
-        st.markdown("<h1 style='text-align: center;'>💎 Nayla Project v2</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'>💎 Finance Project v2</h1>", unsafe_allow_html=True)
         if st.session_state.lottie_wallet: 
             st_lottie(st.session_state.lottie_wallet, height=150)
         
