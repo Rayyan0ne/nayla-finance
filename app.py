@@ -5,10 +5,8 @@ import requests
 from streamlit_lottie import st_lottie
 
 # --- GAYA JAVA: DATABASE MANAGER CLASS ---
-# Ini mirip seperti kamu membuat class DatabaseConfig di Java
 class DatabaseManager:
     def __init__(self):
-        # Mengambil konfigurasi dari secrets (ini seperti constructor)
         self.host = st.secrets["db_host"].strip().replace('"', '').replace("'", "")
         self.user = st.secrets["db_user"].strip()
         self.password = st.secrets["db_password"].strip()
@@ -27,11 +25,9 @@ class DatabaseManager:
             )
             return conn
         except Exception as e:
-            st.error(f"Gagal konek ke Database (OOP Style): {e}")
+            st.error(f"Gagal konek ke Database: {e}")
             return None
 
-# --- INISIALISASI OBJECT ---
-# Seperti: DatabaseManager db = new DatabaseManager();
 db = DatabaseManager()
 
 def load_lottieurl(url: str):
@@ -45,8 +41,6 @@ st.set_page_config(page_title="Finance Project", page_icon="💎", layout="wide"
 
 if 'lottie_wallet' not in st.session_state:
     st.session_state.lottie_wallet = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_yM949E.json")
-if 'lottie_success' not in st.session_state:
-    st.session_state.lottie_success = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_vwb8596u.json")
 
 # --- CUSTOM CSS ---
 st.markdown("""
@@ -64,10 +58,6 @@ st.markdown("""
     .card-value-income { color: #00ff88 !important; }
     .card-value-expense { color: #ff4b4b !important; }
     .card-value-saldo { color: #00d4ff !important; }
-    .student-card {
-        background-color: #1e1e1e; padding: 20px; border-radius: 15px;
-        border-left: 5px solid #ff4b4b; margin-bottom: 10px;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -87,7 +77,7 @@ if not st.session_state['logged_in']:
             u = st.text_input("Username")
             p = st.text_input("Password", type="password")
             if st.button("Masuk Sekarang", use_container_width=True):
-                conn = db.get_connection() # Memanggil method dari object db
+                conn = db.get_connection()
                 if conn:
                     cursor = conn.cursor(dictionary=True)
                     cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (u, p))
@@ -120,7 +110,9 @@ if not st.session_state['logged_in']:
 # --- MAIN APP ---
 else:
     st.sidebar.markdown(f"<h2 style='text-align: center;'>👑 {st.session_state['user']}</h2>", unsafe_allow_html=True)
-    menu = st.sidebar.radio("Pilih Dashboard:", ["💰 Money Tracker", "🎓 Student Admin", "🥗 Healthy Kitchen"])
+    
+    # HANYA SATU MENU
+    st.sidebar.info("Dashboard Active: Money Tracker")
     
     if st.sidebar.button("🚪 Log Out", use_container_width=True):
         st.session_state['logged_in'] = False
@@ -129,101 +121,53 @@ else:
     conn = db.get_connection()
     if not conn: st.stop()
 
-    if menu == "💰 Money Tracker":
-        st.title("💸 Financial Dashboard")
-        query = "SELECT * FROM transactions WHERE username=%s ORDER BY created_at DESC"
-        df_fin = pd.read_sql(query, conn, params=(st.session_state['user'],))
-        
-        ti = df_fin[df_fin['type'] == 'Income']['amount'].sum() if not df_fin.empty else 0
-        te = df_fin[df_fin['type'] == 'Expense']['amount'].sum() if not df_fin.empty else 0
-        
-        c1, c2, c3 = st.columns(3)
-        with c1: st.markdown(f"<div class='metric-card-dark'><p>Inflow</p><h2 class='card-value-income'>Rp {ti:,.0f}</h2></div>", unsafe_allow_html=True)
-        with c2: st.markdown(f"<div class='metric-card-dark'><p>Outflow</p><h2 class='card-value-expense'>Rp {te:,.0f}</h2></div>", unsafe_allow_html=True)
-        with c3: st.markdown(f"<div class='metric-card-dark'><p>Net Balance</p><h2 class='card-value-saldo'>Rp {ti-te:,.0f}</h2></div>", unsafe_allow_html=True)
-        
-        with st.expander("➕ Tambah Data Keuangan"):
-            tipe = st.radio("Tipe Transaksi:", ["Income", "Expense"], horizontal=True)
-            amt = st.number_input("Nominal (Rp)", min_value=0, step=1000)
-            note = st.text_input("Keterangan")
-            if st.button("Simpan Transaksi"):
+    # --- MONEY TRACKER ONLY ---
+    st.title("💸 Financial Dashboard")
+    query = "SELECT * FROM transactions WHERE username=%s ORDER BY created_at ASC"
+    df_fin = pd.read_sql(query, conn, params=(st.session_state['user'],))
+    
+    # Hitung Metrik
+    ti = df_fin[df_fin['type'] == 'Income']['amount'].sum() if not df_fin.empty else 0
+    te = df_fin[df_fin['type'] == 'Expense']['amount'].sum() if not df_fin.empty else 0
+    
+    c1, c2, c3 = st.columns(3)
+    with c1: st.markdown(f"<div class='metric-card-dark'><p>Inflow</p><h2 class='card-value-income'>Rp {ti:,.0f}</h2></div>", unsafe_allow_html=True)
+    with c2: st.markdown(f"<div class='metric-card-dark'><p>Outflow</p><h2 class='card-value-expense'>Rp {te:,.0f}</h2></div>", unsafe_allow_html=True)
+    with c3: st.markdown(f"<div class='metric-card-dark'><p>Net Balance</p><h2 class='card-value-saldo'>Rp {ti-te:,.0f}</h2></div>", unsafe_allow_html=True)
+
+    # --- KURVA DIAGRAM MONEY ---
+    if not df_fin.empty:
+        st.subheader("📈 Money Trend")
+        # Menyiapkan data untuk chart
+        df_fin['created_at'] = pd.to_datetime(df_fin['created_at'])
+        chart_data = df_fin.pivot_table(index='created_at', columns='type', values='amount', aggfunc='sum').fillna(0)
+        st.line_chart(chart_data)
+
+    with st.expander("➕ Tambah Data Keuangan"):
+        tipe = st.radio("Tipe Transaksi:", ["Income", "Expense"], horizontal=True)
+        amt = st.number_input("Nominal (Rp)", min_value=0, step=1000)
+        note = st.text_input("Keterangan")
+        if st.button("Simpan Transaksi"):
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO transactions (username, type, amount, note) VALUES (%s, %s, %s, %s)", 
+                         (st.session_state['user'], tipe, amt, note))
+            conn.commit()
+            st.rerun()
+
+    st.subheader("📜 Riwayat")
+    if df_fin.empty:
+        st.info("Belum ada transaksi.")
+    else:
+        # Sort desc untuk history (yang terbaru di atas)
+        for _, row in df_fin.iloc[::-1].iterrows():
+            c_icon, c_txt, c_del = st.columns([0.5, 4, 1])
+            c_icon.write("💰" if row['type'] == 'Income' else "🔻")
+            c_txt.write(f"**{row['note']}** - Rp {row['amount']:,.0f} ({row['created_at']})")
+            if c_del.button("🗑️", key=f"del_fin_{row['id']}"):
                 cursor = conn.cursor()
-                cursor.execute("INSERT INTO transactions (username, type, amount, note) VALUES (%s, %s, %s, %s)", 
-                             (st.session_state['user'], tipe, amt, note))
+                cursor.execute("DELETE FROM transactions WHERE id=%s", (row['id'],))
                 conn.commit()
                 st.rerun()
-
-        st.subheader("📜 Riwayat")
-        if df_fin.empty:
-            st.info("Belum ada transaksi.")
-        else:
-            for _, row in df_fin.iterrows():
-                c_icon, c_txt, c_del = st.columns([0.5, 4, 1])
-                c_icon.write("💰" if row['type'] == 'Income' else "🔻")
-                c_txt.write(f"**{row['note']}** - Rp {row['amount']:,.0f}")
-                if c_del.button("🗑️", key=f"del_fin_{row['id']}"):
-                    cursor = conn.cursor()
-                    cursor.execute("DELETE FROM transactions WHERE id=%s", (row['id'],))
-                    conn.commit()
-                    st.rerun()
-                st.divider()
-
-    elif menu == "🎓 Student Admin":
-        st.title("👩‍🏫 Student Management")
-        with st.expander("➕ Tambah Murid Baru"):
-            n, c = st.columns(2)
-            s_name = n.text_input("Nama Murid")
-            s_course = c.radio("Pilih Kursus:", ["Dasar Menjahit VR", "Rancang Busana Digital"])
-            if st.button("Simpan Murid"):
-                cursor = conn.cursor()
-                cursor.execute("INSERT INTO students (student_name, course_name, username, progress) VALUES (%s, %s, %s, 0)", 
-                             (s_name, s_course, st.session_state['user']))
-                conn.commit()
-                st.rerun()
-
-        df_stu = pd.read_sql("SELECT * FROM students WHERE username=%s", conn, params=(st.session_state['user'],))
-        for _, row in df_stu.iterrows():
-            st.markdown(f"<div class='student-card'><h3>👤 {row['student_name']}</h3><p>📚 {row['course_name']}</p></div>", unsafe_allow_html=True)
-            
-            stages = ["Tahap 1", "Tahap 2", "Tahap 3", "Tahap 4", "Tahap 5"]
-            cols = st.columns(5)
-            checked_count = 0
-            for i in range(5):
-                is_checked = cols[i].checkbox(f"T{i+1}", value=(int(row['progress']) >= (i+1)*20), key=f"ch_{row['id']}_{i}")
-                if is_checked:
-                    checked_count += 1
-            
-            new_prog = checked_count * 20
-            st.progress(new_prog / 100)
-            
-            if new_prog == 100: 
-                st.success("🎉 Ahli dalam bidangnya!")
-                if st.session_state.lottie_success:
-                    st_lottie(st.session_state.lottie_success, height=100, key=f"l_{row['id']}")
-            
-            c1, c2, _ = st.columns([1, 1, 4])
-            if c1.button("💾", key=f"s_{row['id']}"):
-                cursor = conn.cursor()
-                cursor.execute("UPDATE students SET progress=%s WHERE id=%s", (new_prog, row['id']))
-                conn.commit()
-                st.toast("Progress disimpan!")
-            if c2.button("🗑️", key=f"d_{row['id']}"):
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM students WHERE id=%s", (row['id'],))
-                conn.commit()
-                st.rerun()
-
-    elif menu == "🥗 Healthy Kitchen":
-        st.title("🥗 Healthy Recipe Guide")
-        recipes = {
-            "Es Teh Lemon Madu": {"ing": ["Teh Celup", "Lemon", "Madu"], "steps": ["Seduh teh", "Campur madu & lemon"], "msg": "Segar! 🍋"},
-            "Orak Arik Telur": {"ing": ["2 Telur", "Wortel", "Kol"], "steps": ["Tumis sayur", "Orak-arik telur"], "msg": "Protein! 🍳"}
-        }
-        choice = st.selectbox("Pilih Resep:", list(recipes.keys()))
-        res = recipes[choice]
-        st.subheader("🛒 Bahan")
-        for i in res["ing"]: st.write(f"- {i}")
-        st.subheader("👨‍🍳 Langkah")
-        for s in res["steps"]: st.checkbox(s, key=f"step_{choice}_{s}")
+            st.divider()
 
     conn.close()
